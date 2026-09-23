@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-video_recover.py — carve + repair video clips from a disk image (themed).
+video_recover.py - carve + repair video clips from a disk image (themed).
 
 - Reuses the cached clip table from "Detect" if present (no re-scan); else scans
   and caches it.
 - COMPLETE clips (moov+mdat) are carved straight out and play immediately.
 - Truncated/fragment clips are carved raw, then repaired best-effort:
-    1) untrunc <reference> <broken>   — tries EACH reference clip you provide
+    1) untrunc <reference> <broken>   - tries EACH reference clip you provide
        (a single file, or a whole folder of references for mixed resolutions/fps)
-    2) ffmpeg -c copy remux           — fallback
+    2) ffmpeg -c copy remux           - fallback
 Reads the image READ-ONLY; writes only into the output directory.
 
 Usage:  python3 video_recover.py <image> <out_dir> [reference_file_or_dir] [scan_GB]
@@ -81,7 +81,7 @@ def get_clips(image, limit):
     """Reuse cached clip table if available, else scan (and cache)."""
     clips, _ = mp4.load_clips(image)
     if clips:
-        T.info(f"using cached clip table ({len(clips)} clips) — no re-scan needed")
+        T.info(f"using cached clip table ({len(clips)} clips) - no re-scan needed")
         return sorted(clips, key=lambda c: c["off"])
     T.banner("video_recover", "phase 1 · scanning for clips (no cache found)")
     found = []
@@ -125,12 +125,12 @@ def main():
 
     clips = get_clips(image, limit)
     if not clips:
-        T.warn("no clips found — try a larger scan_GB, or delete the .clips.json cache and re-scan.")
+        T.warn("no clips found - try a larger scan_GB, or delete the .clips.json cache and re-scan.")
         return
     if references:
         T.info(f"{len(references)} reference clip(s) available for untrunc repair")
     else:
-        T.warn("no reference clips — broken clips limited to ffmpeg remux (often can't fix truncation)")
+        T.warn("no reference clips - broken clips limited to ffmpeg remux (often can't fix truncation)")
 
     # ---- carve + repair with a live table ----
     results = []

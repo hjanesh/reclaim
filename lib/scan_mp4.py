@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scan_mp4.py — READ-ONLY video-clip finder with a live themed dashboard.
+scan_mp4.py - READ-ONLY video-clip finder with a live themed dashboard.
 
 Scans a disk image for MP4/MOV clips (Sony XAVC S etc.), showing a live block
 map + stats, then prints a results table (complete vs truncated). Writes
@@ -110,7 +110,7 @@ def main():
                f"(Recover will reuse it, no re-scan)")
     print("\n" + T.bold(T.fg(T.TITLE) + "  video clips found" + T.RESET))
     if not clips_sorted:
-        T.warn("none > 512 KB in range — try a larger scan_GB, or clips are fragmented.")
+        T.warn("none > 512 KB in range - try a larger scan_GB, or clips are fragmented.")
         return
     print(T.fg(T.MUTED) + f"  {'#':>2}  {'OFFSET (GB)':>12}  {'SIZE':>10}  STATE      BRAND" + T.RESET)
     comp = 0

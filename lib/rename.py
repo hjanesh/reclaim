@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-rename.py — restore original filenames from embedded metadata (best-effort).
+rename.py - restore original filenames from embedded metadata (best-effort).
 
 Carving (photorec) loses the original names because the card's directory was
 overwritten. Some cameras embed the original filename in metadata; where they
@@ -92,7 +92,7 @@ def main():
     if not os.path.isdir(root):
         T.err(f"not a directory: {root}"); sys.exit(1)
     if not have("exiftool"):
-        T.err("exiftool is required — run ./install.sh"); sys.exit(1)
+        T.err("exiftool is required - run ./install.sh"); sys.exit(1)
 
     T.banner("rename", ("APPLY (moving files)" if apply else "DRY-RUN (preview only)"))
     T.info("reading metadata via exiftool …")
@@ -128,13 +128,13 @@ def main():
         T.info(f"{relabels} Sony RAW relabelled .sr2/.tif -> .arw")
     if embedded == 0:
         T.warn("this camera doesn't embed the on-card filename in metadata, so exact "
-               "original names aren't recoverable — files get clean timestamp-based names.")
+               "original names aren't recoverable - files get clean timestamp-based names.")
 
     for src, dst in plan[:8]:
         print(f"    {T.fg(T.MUTED)}{os.path.basename(src)} -> {os.path.basename(dst)}{T.RESET}")
 
     if not apply:
-        T.warn("dry-run only — re-run with --apply to perform the renames.")
+        T.warn("dry-run only - re-run with --apply to perform the renames.")
         return
 
     os.makedirs(out, exist_ok=True)

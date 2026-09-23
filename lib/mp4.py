@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-mp4.py — MP4/MOV (ISO base media / QuickTime) atom logic. No UI.
+mp4.py - MP4/MOV (ISO base media / QuickTime) atom logic. No UI.
 
 Shared by the video scanner (detection dashboard) and the video recoverer
 (carver). All reads are read-only. A "clip" starts at an `ftyp` box; we walk
@@ -127,7 +127,7 @@ def carve(image, off, size, out_path, chunk=8 * 1024 * 1024):
 
 
 # ---------------------------------------------------------------------------
-# Clip-table cache — lets "Detect" save results that "Recover" reuses later,
+# Clip-table cache - lets "Detect" save results that "Recover" reuses later,
 # so you can scan today and recover another day without re-scanning.
 # ---------------------------------------------------------------------------
 def cache_path(image):

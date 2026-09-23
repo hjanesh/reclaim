@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh — install Reclaim's dependencies on macOS or Linux.
+# install.sh - install Reclaim's dependencies on macOS or Linux.
 #
 #   ddrescue   imaging
 #   photorec   (from testdisk) file carving
@@ -9,7 +9,7 @@
 #   python3    the toolkit itself
 #   untrunc    fragmented-video reconstruction (best-effort build)
 #
-# Safe to re-run. untrunc is optional — the rest of the toolkit works without it.
+# Safe to re-run. untrunc is optional - the rest of the toolkit works without it.
 
 set -u
 REPO="$(cd "$(dirname "$0")" && pwd)"
@@ -22,7 +22,7 @@ err(){ printf "  \033[38;2;231;76;60m✖\033[0m %s\n" "$1"; }
 hdr(){ printf "\n\033[1m\033[38;2;236;240;245m%s\033[0m\n" "$1"; }
 
 OS="$(uname -s)"
-hdr "Reclaim installer — detected: $OS"
+hdr "Reclaim installer - detected: $OS"
 
 # ---------------------------------------------------------------------------
 install_mac() {
@@ -46,22 +46,22 @@ install_linux() {
     sudo apt-get install -y gddrescue testdisk ffmpeg libimage-exiftool-perl \
                             python3 build-essential git pkg-config || wrn "some apt installs failed"
   else
-    wrn "no apt-get found — install manually: ddrescue testdisk ffmpeg exiftool python3"
+    wrn "no apt-get found - install manually: ddrescue testdisk ffmpeg exiftool python3"
   fi
 }
 
 # ---------------------------------------------------------------------------
 install_untrunc() {
-  hdr "untrunc (fragmented-video repair) — best-effort"
+  hdr "untrunc (fragmented-video repair) - best-effort"
   if command -v untrunc >/dev/null 2>&1; then ok "untrunc already installed"; return; fi
   for t in git make; do
-    command -v "$t" >/dev/null 2>&1 || { wrn "missing '$t' — skipping untrunc build"; return; }
+    command -v "$t" >/dev/null 2>&1 || { wrn "missing '$t' - skipping untrunc build"; return; }
   done
   local work; work="${TMPDIR:-/tmp}/reclaim-untrunc"
   rm -rf "$work"
   inf "cloning anthwlock/untrunc …"
   git clone --depth 1 https://github.com/anthwlock/untrunc "$work" >/dev/null 2>&1 || {
-    wrn "clone failed — skipping untrunc"; return; }
+    wrn "clone failed - skipping untrunc"; return; }
   ( cd "$work"
     if [ -f build.sh ]; then bash build.sh >/dev/null 2>&1 || true; fi
     [ -x untrunc ] || make >/dev/null 2>&1 || true )
@@ -73,7 +73,7 @@ install_untrunc() {
       ok "untrunc built → $REPO/bin/untrunc  (add $REPO/bin to your PATH)"
     fi
   else
-    wrn "untrunc build failed — that's OK: complete-clip carving + ffmpeg remux still work."
+    wrn "untrunc build failed - that's OK: complete-clip carving + ffmpeg remux still work."
     inf "to build it later, see: https://github.com/anthwlock/untrunc"
   fi
 }
@@ -95,12 +95,12 @@ done
 if command -v untrunc >/dev/null 2>&1 || [ -x "$REPO/bin/untrunc" ]; then
   ok "untrunc"
 else
-  wrn "untrunc  (optional — broken-video repair limited to ffmpeg)"
+  wrn "untrunc  (optional - broken-video repair limited to ffmpeg)"
 fi
 
 echo
 if [ "$allgood" -eq 1 ]; then
-  ok "all core tools ready — run:  python3 reclaim.py"
+  ok "all core tools ready - run:  python3 reclaim.py"
 else
-  wrn "some core tools are missing — re-run this script or install them manually."
+  wrn "some core tools are missing - re-run this script or install them manually."
 fi

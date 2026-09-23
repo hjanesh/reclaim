@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-organize.py — tidy a folder of carved files into dated per-shoot folders.
+organize.py - tidy a folder of carved files into dated per-shoot folders.
 
 - Relabels Sony RAW that PhotoRec named .sr2/.tif/.tiff → .arw.
 - Sorts photos/videos into <out>/YYYY-MM-DD/ by capture date
@@ -76,7 +76,7 @@ def main():
 
     T.banner("organize", ("APPLY (moving files)" if apply else "DRY-RUN (preview only)"))
     T.info("reading capture dates via exiftool …" if have("exiftool")
-           else "exiftool not found — using file modification times")
+           else "exiftool not found - using file modification times")
     dates = exif_dates(root)
 
     plan = []       # (src, dst)
@@ -112,7 +112,7 @@ def main():
         T.info(f"{relabels} Sony RAW files will be relabelled .sr2/.tif → .arw")
 
     if not apply:
-        T.warn("dry-run only — re-run with --apply to move the files.")
+        T.warn("dry-run only - re-run with --apply to move the files.")
         for src, dst in plan[:6]:
             print(f"    {T.fg(T.MUTED)}{os.path.basename(src)} → "
                   f"{os.path.relpath(dst, out)}{T.RESET}")

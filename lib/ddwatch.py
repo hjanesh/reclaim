@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ddwatch.py — live block-map for a GNU ddrescue run (themed).
+ddwatch.py - live block-map for a GNU ddrescue run (themed).
 
 Progress/rate come from the growing image file (smooth); the map file overlays
-rare bad / non-trimmed / non-scraped regions. Reads image/map only — zero load
+rare bad / non-trimmed / non-scraped regions. Reads image/map only - zero load
 on ddrescue, never touches the source device.
 
 Usage:  python3 ddwatch.py <mapfile> [imagefile]
@@ -113,7 +113,7 @@ def main():
 
                 if total and cur >= total and not overlays:
                     sys.stdout.write("\n  " + T.fg(T.GREEN) +
-                                     T.bold("✔ Imaging complete — device fully copied.") + T.RESET + "\n")
+                                     T.bold("✔ Imaging complete - device fully copied.") + T.RESET + "\n")
                     break
                 time.sleep(2)
     except KeyboardInterrupt:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-phrec_watch.py — live themed dashboard for a PhotoRec recovery run.
+phrec_watch.py - live themed dashboard for a PhotoRec recovery run.
 
 Reads ONLY the recovered output folder (counts files/sizes). Zero load on
 PhotoRec, never touches the source. Shows an approximate progress bar,

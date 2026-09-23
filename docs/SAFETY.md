@@ -1,4 +1,4 @@
-# Reclaim — Safety & Philosophy
+# Reclaim - Safety & Philosophy
 
 Data recovery is mostly about **not making things worse**. Reclaim is built around a few hard
 rules learned the practical way.
@@ -18,10 +18,10 @@ rules learned the practical way.
 ## SD cards vs SSDs (this matters a lot)
 
 - **SD/microSD cards generally do _not_ support TRIM.** A quick or in-camera format only rewrites
-  the filesystem's directory/FAT — the actual photo/video bytes stay in the flash. This is why a
+  the filesystem's directory/FAT - the actual photo/video bytes stay in the flash. This is why a
   "formatted" card is usually **very recoverable**, and why Reclaim exists.
 - **SSDs _do_ support TRIM.** A quick reformat of an SSD often issues TRIM/UNMAP, and the
-  controller then returns deterministic zeros for those blocks — the data is gone at the block
+  controller then returns deterministic zeros for those blocks - the data is gone at the block
   level and **not recoverable by software**. Image it and check (all-zeros past the new metadata =
   TRIMmed), but temper expectations.
 
@@ -33,7 +33,7 @@ rules learned the practical way.
 - **"Target is busy" on unmount.** Usually a file manager (Nautilus/Finder), a background indexer
   (Tracker/Spotlight), a leftover loop device, or a shell sitting inside the mount. Close those,
   detach loop devices, then unmount.
-- **PhotoRec loses filenames.** Carving reconstructs *content*, not the original names — but RAW
+- **PhotoRec loses filenames.** Carving reconstructs *content*, not the original names - but RAW
   and video keep their EXIF/creation timestamps, so menu 5 can re-sort them by capture date.
 - **Video is the hard part.** Large clips are the most likely to be fragmented; a fragmented clip
   carves as a short/broken file. `untrunc` + a same-camera reference clip rebuilds them.
@@ -42,4 +42,4 @@ rules learned the practical way.
 
 - Open a few RAW files in your editor and check EXIF looks right.
 - Play the recovered videos end-to-end (not just the first second).
-- Keep the original image until you've confirmed the recovery — it's your safety net.
+- Keep the original image until you've confirmed the recovery - it's your safety net.

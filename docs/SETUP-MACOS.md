@@ -1,11 +1,11 @@
-# Reclaim — macOS setup from scratch (Apple Silicon: M1/M2/M3/M4)
+# Reclaim - macOS setup from scratch (Apple Silicon: M1/M2/M3/M4)
 
-This is for a **brand-new Mac with nothing installed** — no git, no dev tools. Follow it top to
+This is for a **brand-new Mac with nothing installed** - no git, no dev tools. Follow it top to
 bottom. You'll paste commands into **Terminal**.
 
 > Open Terminal: press **⌘ Space**, type `Terminal`, press **Return**.
 >
-> When a command asks for your **Mac login password**, type it and press Return — the characters
+> When a command asks for your **Mac login password**, type it and press Return - the characters
 > stay invisible as you type. That's normal.
 
 ---
@@ -16,13 +16,13 @@ bottom. You'll paste commands into **Terminal**.
 xcode-select --install
 ```
 
-A dialog appears → click **Install** → agree → wait (5–15 min). When it's done, verify:
+A dialog appears → click **Install** → agree → wait (5-15 min). When it's done, verify:
 
 ```bash
 git --version
 ```
 
-You should see a version number. (If it says "command not found", the install didn't finish —
+You should see a version number. (If it says "command not found", the install didn't finish -
 re-run the command.)
 
 ---
@@ -76,7 +76,7 @@ This installs everything Reclaim needs:
 | `python3` | runs the toolkit |
 | `untrunc` | rebuild broken videos (best-effort build; optional) |
 
-Takes a few minutes. At the end it prints a **readiness check** — every core tool should show a
+Takes a few minutes. At the end it prints a **readiness check** - every core tool should show a
 green ✔. `untrunc` may show a yellow ⚠ (that's fine; complete clips still carve and `ffmpeg`
 handles remux).
 
@@ -96,7 +96,7 @@ Then reopen these steps inside iTerm2.
 
 ## 6. Connect the SSD and find the image
 
-1. Plug the **SanDisk SSD** into a **direct USB-C / Thunderbolt port** (not a cheap hub — hubs can
+1. Plug the **SanDisk SSD** into a **direct USB-C / Thunderbolt port** (not a cheap hub - hubs can
    stall large reads).
 2. Find the `lexar-card.img` on it:
 
@@ -122,7 +122,7 @@ You'll get the menu. For finishing this recovery, go in this order:
 2. **4) Recover videos** → image path → an **output folder** (e.g. `/Volumes/Untitled1/recovered-video`)
    → optionally **reference clip(s)** (see below). Reuses the Detect scan (no re-scan). Complete
    clips carve straight to playable `.mp4`; broken ones are repaired.
-3. **2) Recover photos & files** → image path → output folder — only if you want to re-run the
+3. **2) Recover photos & files** → image path → output folder - only if you want to re-run the
    photo carve (your stills were already recovered earlier).
 4. **5) Organize photos** → point it at the recovered folder → it relabels Sony RAW `.sr2/.tif` →
    `.arw` and sorts everything into `YYYY-MM-DD/` folders (dry-run first, then apply).
@@ -154,7 +154,7 @@ path in menu 4.
   run them, or just close and reopen Terminal.
 - **untrunc "cannot be opened because the developer cannot be verified"** → run
   `xattr -d com.apple.quarantine ./bin/untrunc` (or System Settings → Privacy & Security →
-  **Allow Anyway**). Not needed if untrunc didn't build — `ffmpeg` still handles remux.
+  **Allow Anyway**). Not needed if untrunc didn't build - `ffmpeg` still handles remux.
 - **"Permission denied" reading a device** → recovering from the **image file** needs no `sudo`.
   Only imaging a live disk (menu 1) needs `sudo` + Terminal granted **Full Disk Access** in
   System Settings → Privacy & Security.

@@ -3,6 +3,8 @@
 *.dd
 *.raw
 *.map
+*.clips.json
+output/
 recovered/
 recup*/
 videos/

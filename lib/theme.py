@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-theme.py — shared terminal UI for Reclaim.
+theme.py - shared terminal UI for Reclaim.
 
 One place for the look-and-feel used by every dashboard and the main menu:
 true-colour palette, ANSI-safe width helpers, bordered panels, a stable
@@ -211,7 +211,7 @@ def menu(title, items, subtitle=None):
         for key, _, _ in items:
             if choice.lower() == key.lower():
                 return key
-        err("invalid choice — try again"); input("  (enter to continue)")
+        err("invalid choice - try again"); input("  (enter to continue)")
 
 
 def ask(q, default=None):
@@ -220,17 +220,30 @@ def ask(q, default=None):
     return val or (default if default is not None else "")
 
 
-def ask_path(q, must_exist=True, want="any", default=None):
+def ask_path(q, must_exist=True, want="any", default=None, pick_kind=None):
     """
     Ask for a filesystem path. want in {'any','file','dir'}.
-    Expands ~ and $VARS. Re-prompts until valid (or blank if allowed).
+    Expands ~ and $VARS. Re-prompts until valid.
+    Type 'f' to open a native file/folder picker; 'b' to go back (returns "").
     """
+    import platform_utils as _P   # lazy import avoids a circular dependency
+    kind = pick_kind or ("file" if want == "file" else "dir")
+    can_pick = _P.has_picker()
+    hint = "  (" + ("f = pick, " if can_pick else "") + "b = back)"
     while True:
-        raw = ask(q, default)
+        raw = ask(q + fg(MUTED) + hint + RESET, default)
+        low = raw.strip().lower()
+        if low in ("b", "back", "menu"):
+            return ""
+        if low in ("f", "pick") and can_pick:
+            picked = _P.pick(kind, q)
+            if not picked:
+                info("picker cancelled"); continue
+            raw = picked
         if not raw:
             if default is None and not must_exist:
                 return ""
-            err("please enter a path"); continue
+            err("please enter a path (or 'b' to go back)"); continue
         p = os.path.abspath(os.path.expanduser(os.path.expandvars(raw)))
         if not must_exist:
             return p

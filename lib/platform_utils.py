@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-platform_utils.py — OS + device abstraction for Reclaim (macOS + Linux).
+platform_utils.py - OS + device abstraction for Reclaim (macOS + Linux).
 
 Only the "image a whole disk" flow needs real device handling; everything else
 (photo/video recovery from an image) just needs a file path and is portable.
@@ -138,3 +138,39 @@ def default_image_hint():
 
 def os_name():
     return "macOS" if IS_MAC else ("Linux" if IS_LINUX else sys.platform)
+
+
+def pick(kind="dir", prompt="Select"):
+    """
+    Open a native file/folder picker and return the chosen path (or "" if
+    cancelled/unavailable). kind: 'file' | 'dir' | 'save'.
+    macOS uses Finder via osascript; Linux uses zenity or kdialog.
+    """
+    prompt = prompt.replace('"', "'")
+    if IS_MAC:
+        if kind == "file":
+            script = f'POSIX path of (choose file with prompt "{prompt}")'
+        elif kind == "save":
+            script = f'POSIX path of (choose file name with prompt "{prompt}")'
+        else:
+            script = f'POSIX path of (choose folder with prompt "{prompt}")'
+        r = _run(["osascript", "-e", script])
+        return r.stdout.strip() if r.returncode == 0 else ""
+    if have("zenity"):
+        args = ["zenity", "--file-selection", "--title", prompt]
+        if kind == "dir":
+            args.append("--directory")
+        if kind == "save":
+            args += ["--save", "--confirm-overwrite"]
+        r = _run(args)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    if have("kdialog"):
+        flag = {"file": "--getopenfilename", "dir": "--getexistingdirectory",
+                "save": "--getsavefilename"}[kind]
+        r = _run(["kdialog", flag, os.path.expanduser("~")])
+        return r.stdout.strip() if r.returncode == 0 else ""
+    return ""
+
+
+def has_picker():
+    return IS_MAC or have("zenity") or have("kdialog")

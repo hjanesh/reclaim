@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-reclaim.py — Reclaim, a terminal-native data-recovery toolkit.
+reclaim.py - Reclaim, a terminal-native data-recovery toolkit.
 
 A themed menu over the pieces we use to recover photos & video from a damaged
 or reformatted card/SSD:
@@ -10,7 +10,8 @@ or reformatted card/SSD:
   3) Detect videos       (MP4/MOV clip finder)
   4) Recover videos      (carve complete + repair broken)
   5) Organize photos     (relabel Sony RAW + sort by date)
-  6) Show disks
+  6) Rename to original names (restore filenames from metadata)
+  7) Show disks
 
 Design rule: sources are ALWAYS opened read-only; output must differ from the
 source. Prefer imaging first, then recover from the image.
@@ -23,6 +24,13 @@ sys.path.insert(0, LIB)
 
 import theme as T            # noqa: E402
 import platform_utils as P   # noqa: E402
+
+OUTPUT_ROOT = os.path.join(HERE, "output")
+
+
+def default_out(name):
+    """Default output location inside the repo. Users can type/pick another."""
+    return os.path.join(OUTPUT_ROOT, name)
 
 
 def have(cmd): return shutil.which(cmd) is not None
@@ -64,7 +72,7 @@ def do_image():
             print(T.panel_row(f"  {T.fg(T.CYAN)}{i}{T.RESET})  {d['node']:<14} "
                               f"{T.human_t(d['size']):>9}  {tag}  {d.get('model','')}", W))
         print(T.panel_bot(W))
-        T.warn("pick the SOURCE to image. Double-check — never pick your system disk.")
+        T.warn("pick the SOURCE to image. Double-check - never pick your system disk.")
         sel = T.ask("source disk number (or blank to type a /dev path)")
         source = ""
         if sel.isdigit() and 1 <= int(sel) <= len(disks):
@@ -76,7 +84,8 @@ def do_image():
         source = T.ask("source device path (e.g. /dev/sdb or /dev/disk4)")
     if not source:
         return
-    img = T.ask_path("destination image file (on ANOTHER drive)", must_exist=False)
+    img = T.ask_path("destination image file (on ANOTHER drive)", must_exist=False,
+                     default=default_out("card.img"), pick_kind="save")
     if not img:
         return
     if not diff_paths(source, img):
@@ -100,14 +109,16 @@ def do_image():
     cmd = sudo_prefix(raw) + ["ddrescue", "--no-scrape", raw, img, mapf]
     if cmd and cmd[0] == "sudo":
         subprocess.run(["sudo", "-v"])   # cache credentials so the dashboard isn't interrupted
-    T.info("launching ddrescue + live dashboard … (Ctrl-C the dashboard to detach)")
-    proc = subprocess.Popen(cmd)
+    T.info("launching ddrescue (detached) + live dashboard … (Ctrl-C the dashboard to detach)")
+    # detach from the terminal so ddrescue's progress can't corrupt the dashboard
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            stdin=subprocess.DEVNULL, start_new_session=True)
     try:
         run_py("ddwatch.py", mapf, img)
     except KeyboardInterrupt:
         pass
     if proc.poll() is None:
-        if T.confirm("dashboard closed — wait for ddrescue to finish?", default=True):
+        if T.confirm("dashboard closed - wait for ddrescue to finish?", default=True):
             proc.wait()
     T.ok("imaging step done."); T.pause()
 
@@ -120,7 +131,8 @@ def do_photorec():
                         must_exist=not_dev())
     if not source:
         return
-    out = T.ask_path("output directory (on ANOTHER drive)", must_exist=False)
+    out = T.ask_path("output directory (on ANOTHER drive)", must_exist=False,
+                     default=default_out("photos"))
     if not out:
         return
     if not diff_paths(source, out):
@@ -133,10 +145,17 @@ def do_photorec():
         "/cmd", source, "partition_none,fileopt,everything,enable,search"]
     if cmd and cmd[0] == "sudo":
         subprocess.run(["sudo", "-v"])
-    T.info("launching photorec + live dashboard …")
+    logpath = os.path.join(out, "photorec_run.log")
+    T.info("launching photorec (detached) + live dashboard …")
+    T.info(f"photorec's own output is logged to {logpath} (kept off the dashboard).")
     T.info("photorec runs to completion; Ctrl-C the dashboard when it's done.")
     T.pause("press enter to start")
-    proc = subprocess.Popen(cmd)
+    # Detach photorec from the terminal so its text UI can't corrupt the dashboard:
+    # new session (no controlling tty) + output to a log file + no stdin.
+    lf = open(logpath, "wb")
+    proc = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT,
+                            stdin=subprocess.DEVNULL, start_new_session=True)
+    lf.close()
     try:
         run_py("phrec_watch.py", out, exp or "50")
     except KeyboardInterrupt:
@@ -149,7 +168,7 @@ def do_photorec():
 
 
 def not_dev():
-    # photorec source may be a device (won't exist as a file) — allow non-file too
+    # photorec source may be a device (won't exist as a file) - allow non-file too
     return False
 
 
@@ -168,13 +187,16 @@ def do_recover_video():
     img = T.ask_path("image file", want="file")
     if not img:
         return
-    out = T.ask_path("output directory (on ANOTHER drive)", must_exist=False)
-    if not out or not diff_paths(img, out):
-        T.err("output must be set and differ from the image."); T.pause(); return
+    out = T.ask_path("output directory (on ANOTHER drive)", must_exist=False,
+                     default=default_out("videos"))
+    if not out:
+        return
+    if not diff_paths(img, out):
+        T.err("output must differ from the image."); T.pause(); return
     ref = ""
     if T.confirm("do you have reference clip(s) to repair broken videos?", default=False):
         T.info("give a single .mp4/.mov file, OR a FOLDER containing several references")
-        T.info("(one per recording mode — e.g. 4K 25p and 4K 24p; the tool tries each).")
+        T.info("(one per recording mode - e.g. 4K 25p and 4K 24p; the tool tries each).")
         ref = T.ask_path("reference file or folder", must_exist=True, want="any", default="")
     gb = T.ask("how many GB from the start to scan", default="60")
     run_py("video_recover.py", img, out, ref or "", gb or "60")
@@ -186,9 +208,12 @@ def do_organize():
     root = T.ask_path("folder of recovered files", want="dir")
     if not root:
         return
-    out = T.ask_path("output folder for dated structure", must_exist=False)
-    if not out or not diff_paths(root, out):
-        T.err("output must be set and differ from the source folder."); T.pause(); return
+    out = T.ask_path("output folder for dated structure", must_exist=False,
+                     default=default_out("organized"))
+    if not out:
+        return
+    if not diff_paths(root, out):
+        T.err("output must differ from the source folder."); T.pause(); return
     run_py("organize.py", root, out)     # dry-run first
     if T.confirm("apply these moves now?", default=False):
         run_py("organize.py", root, out, "--apply")
@@ -203,9 +228,12 @@ def do_rename():
     root = T.ask_path("folder of recovered files", want="dir")
     if not root:
         return
-    out = T.ask_path("output folder for renamed files", must_exist=False)
-    if not out or not diff_paths(root, out):
-        T.err("output must be set and differ from the source folder."); T.pause(); return
+    out = T.ask_path("output folder for renamed files", must_exist=False,
+                     default=default_out("renamed"))
+    if not out:
+        return
+    if not diff_paths(root, out):
+        T.err("output must differ from the source folder."); T.pause(); return
     run_py("rename.py", root, out)     # dry-run first
     if T.confirm("apply these renames now?", default=False):
         run_py("rename.py", root, out, "--apply")
@@ -252,11 +280,11 @@ def main():
         key = T.menu("RECLAIM · data recovery toolkit",
                      MENU, subtitle=f"{P.os_name()} · sources are read-only")
         if key == "q":
-            print(); T.ok("bye — your sources were never modified."); break
+            print(); T.ok("bye - your sources were never modified."); break
         try:
             ACTIONS[key]()
         except KeyboardInterrupt:
-            print(); T.warn("cancelled — back to menu.")
+            print(); T.warn("cancelled - back to menu.")
 
 
 if __name__ == "__main__":
