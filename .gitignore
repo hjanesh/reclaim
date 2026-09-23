@@ -1,0 +1,24 @@
+# disk images & recovery output (never commit recovered data / large images)
+*.img
+*.dd
+*.raw
+*.map
+recovered/
+recup*/
+videos/
+videos_broken/
+organized/
+
+# built untrunc binary
+/bin/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# os cruft
+.DS_Store
+Thumbs.db
+*.swp
