@@ -74,12 +74,8 @@ def main():
             f"     {T.chip(T.CYAN)} clips {T.bold(str(len(clips))):>4}", W))
         L.append(T.panel_sep(W))
         for r in range(trows):
-            row = [T.fg(T.BORDER) + "│" + T.RESET]
-            for c in range(tcols):
-                row.append(T.fg(cellcol(r * tcols + c)) + "■" + T.RESET +
-                           (" " if c < tcols - 1 else ""))
-            row.append(T.fg(T.BORDER) + "│" + T.RESET)
-            L.append("".join(row))
+            cells = "".join(T.fg(cellcol(r * tcols + c)) + "■ " for c in range(tcols))
+            L.append(T.panel_row(cells, W))
         L.append(T.panel_sep(W))
         L.append(T.panel_row(
             f" {T.chip(T.GREEN)} complete  {T.chip(T.YELLOW)} truncated  {T.chip(T.RED)} fragment"
@@ -109,6 +105,9 @@ def main():
 
     # ---- final table ----
     clips_sorted = sorted(clips, key=lambda c: c["off"])
+    if mp4.save_clips(image, clips_sorted, st["pos"]):
+        T.info(f"clip table cached → {os.path.basename(mp4.cache_path(image))} "
+               f"(Recover will reuse it, no re-scan)")
     print("\n" + T.bold(T.fg(T.TITLE) + "  video clips found" + T.RESET))
     if not clips_sorted:
         T.warn("none > 512 KB in range — try a larger scan_GB, or clips are fragmented.")

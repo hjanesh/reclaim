@@ -91,19 +91,18 @@ def main():
                     f"  {T.chip(T.GREEN)} rescued {T.bold(T.human_t(cur)):>10} of {T.human_t(total)}"
                     f"    {T.chip(T.SLATE)} rate {rs}   {T.fg(T.MUTED)}eta {es}{T.RESET}", W))
                 bad = sum(s for _, s, c in overlays if c == "-")
-                bad_x = T.fg(T.RED) + "⚠ read errors" + T.RESET if has_bad else T.fg(T.MUTED) + "errors: 0" + T.RESET
+                bad_x = T.fg(T.RED) + "read errors!" + T.RESET if has_bad else T.fg(T.MUTED) + "errors: 0" + T.RESET
                 L.append(T.panel_row(
                     f"  {T.chip(T.RED)} bad {T.human_t(bad):>10}   {bad_x}"
                     f"     {T.chip(T.CYAN)} pos {T.human_t(cur)}", W))
                 L.append(T.panel_sep(W))
                 for r in range(trows):
-                    row = [T.fg(T.BORDER) + "│" + T.RESET]
+                    cells = ""
                     for c in range(tcols):
                         i = r * tcols + c
                         col = T.CYAN if i == front else cellcol(i)
-                        row.append(T.fg(col) + "■" + T.RESET + (" " if c < tcols - 1 else ""))
-                    row.append(T.fg(T.BORDER) + "│" + T.RESET)
-                    L.append("".join(row))
+                        cells += T.fg(col) + "■ "
+                    L.append(T.panel_row(cells, W))
                 L.append(T.panel_sep(W))
                 L.append(T.panel_row(
                     f" {T.chip(T.GREEN)} rescued  {T.chip(T.SLATE)} pending  {T.chip(T.YELLOW)} non-trimmed"

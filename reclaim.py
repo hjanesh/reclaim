@@ -171,14 +171,13 @@ def do_recover_video():
     out = T.ask_path("output directory (on ANOTHER drive)", must_exist=False)
     if not out or not diff_paths(img, out):
         T.err("output must be set and differ from the image."); T.pause(); return
-    ref = T.ask_path("reference clip from the SAME camera (optional, for untrunc)",
-                     must_exist=True, want="file", default="") if \
-        T.confirm("do you have a reference clip for repairing broken videos?", default=False) else ""
+    ref = ""
+    if T.confirm("do you have reference clip(s) to repair broken videos?", default=False):
+        T.info("give a single .mp4/.mov file, OR a FOLDER containing several references")
+        T.info("(one per recording mode — e.g. 4K 25p and 4K 24p; the tool tries each).")
+        ref = T.ask_path("reference file or folder", must_exist=True, want="any", default="")
     gb = T.ask("how many GB from the start to scan", default="60")
-    args = [img, out]
-    args.append(ref or "")
-    args.append(gb or "60")
-    run_py("video_recover.py", *args)
+    run_py("video_recover.py", img, out, ref or "", gb or "60")
     T.pause()
 
 
@@ -193,6 +192,23 @@ def do_organize():
     run_py("organize.py", root, out)     # dry-run first
     if T.confirm("apply these moves now?", default=False):
         run_py("organize.py", root, out, "--apply")
+    T.pause()
+
+
+def do_rename():
+    T.clear(); T.banner("Rename to original names",
+                        "restore filenames from embedded metadata (best-effort)")
+    if not need("exiftool"):
+        return
+    root = T.ask_path("folder of recovered files", want="dir")
+    if not root:
+        return
+    out = T.ask_path("output folder for renamed files", must_exist=False)
+    if not out or not diff_paths(root, out):
+        T.err("output must be set and differ from the source folder."); T.pause(); return
+    run_py("rename.py", root, out)     # dry-run first
+    if T.confirm("apply these renames now?", default=False):
+        run_py("rename.py", root, out, "--apply")
     T.pause()
 
 
@@ -220,13 +236,14 @@ MENU = [
     ("3", "Detect videos", "find MP4/MOV clips in an image"),
     ("4", "Recover videos", "carve complete clips + repair broken ones"),
     ("5", "Organize photos", "relabel Sony RAW + sort by capture date"),
-    ("6", "Show disks", "list attached drives"),
+    ("6", "Rename to original names", "restore filenames from embedded metadata"),
+    ("7", "Show disks", "list attached drives"),
     ("q", "Quit", ""),
 ]
 
 ACTIONS = {
     "1": do_image, "2": do_photorec, "3": do_scan_video,
-    "4": do_recover_video, "5": do_organize, "6": do_disks,
+    "4": do_recover_video, "5": do_organize, "6": do_rename, "7": do_disks,
 }
 
 

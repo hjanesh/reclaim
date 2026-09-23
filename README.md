@@ -22,9 +22,13 @@ Runs on **macOS (Apple Silicon & Intel)** and **Linux**.
 | 1 | **Image a disk/card** | `ddrescue` clone to an image file, with a live neon block-map (rate/ETA, bad-sector map). Work from the image afterwards. |
 | 2 | **Recover photos & files** | `photorec` signature carving with a live "haul" dashboard (RAW/JPEG/Video/Audio rollups, per-format table). |
 | 3 | **Detect videos** | Scans an image for MP4/MOV clips (Sony XAVC S etc.), showing which are **complete** vs **truncated/fragmented**. |
-| 4 | **Recover videos** | Carves complete clips (they play immediately) and repairs broken ones with **untrunc** + `ffmpeg`. |
+| 4 | **Recover videos** | Carves complete clips (they play immediately) and repairs broken ones with **untrunc** (tries multiple reference clips) + `ffmpeg`. Reuses the Detect cache — no re-scan. |
 | 5 | **Organize photos** | Relabels Sony RAW that carving named `.sr2/.tif` → `.arw`, and sorts everything into `YYYY-MM-DD/` folders by EXIF capture date. |
-| 6 | **Show disks** | Lists attached drives (internal vs external) so you pick the right one. |
+| 6 | **Rename to original names** | Restores original filenames from embedded metadata where cameras store them; otherwise builds clean timestamp-based names. |
+| 7 | **Show disks** | Lists attached drives (internal vs external) so you pick the right one. |
+
+Steps are **independent and resumable** — scan for videos one day, carve them another; `ddrescue`
+and `photorec` resume via their map/session files. See [docs/USAGE.md](docs/USAGE.md#running-steps-on-different-days).
 
 All dashboards share one theme: a steel-framed panel, a green gradient loader, and a
 defrag/torrent-style block grid that fills as work progresses.
@@ -40,6 +44,8 @@ cd reclaim
 python3 reclaim.py
 ```
 
+- **Brand-new Mac with nothing installed?** Follow [docs/SETUP-MACOS.md](docs/SETUP-MACOS.md) —
+  a from-zero guide (Xcode tools → Homebrew → git → Reclaim).
 - **macOS** uses Homebrew (the installer offers to set it up if missing).
 - **Linux** uses `apt`.
 - `untrunc` (fragmented-video rebuild) is built from source best-effort; if it fails, everything

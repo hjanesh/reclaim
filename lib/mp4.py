@@ -8,6 +8,7 @@ the top-level atom chain to measure its extent and decide whether it's
 complete (has moov + mdat) or truncated/fragmented.
 """
 import os
+import json
 
 # recognised top-level atom types
 TOP = {b"ftyp", b"moov", b"mdat", b"free", b"skip", b"wide", b"uuid",
@@ -123,3 +124,43 @@ def carve(image, off, size, out_path, chunk=8 * 1024 * 1024):
             dst.write(buf)
             written += len(buf)
     return written
+
+
+# ---------------------------------------------------------------------------
+# Clip-table cache — lets "Detect" save results that "Recover" reuses later,
+# so you can scan today and recover another day without re-scanning.
+# ---------------------------------------------------------------------------
+def cache_path(image):
+    return image + ".clips.json"
+
+
+def save_clips(image, clips, scanned_bytes):
+    """Write the detected clip table beside the image."""
+    try:
+        payload = {
+            "image": os.path.abspath(image),
+            "image_size": os.path.getsize(image),
+            "scanned_bytes": int(scanned_bytes),
+            "clips": clips,
+        }
+        with open(cache_path(image), "w") as f:
+            json.dump(payload, f)
+        return True
+    except OSError:
+        return False
+
+
+def load_clips(image):
+    """Return (clips, scanned_bytes) from a valid cache, or (None, 0)."""
+    p = cache_path(image)
+    if not os.path.exists(p):
+        return None, 0
+    try:
+        with open(p) as f:
+            data = json.load(f)
+        # invalidate if the image changed size (different image)
+        if data.get("image_size") != os.path.getsize(image):
+            return None, 0
+        return data.get("clips"), data.get("scanned_bytes", 0)
+    except (OSError, ValueError):
+        return None, 0
