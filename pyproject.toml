@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reclaim"
-version = "0.1.0"
+version = "1.1.0"
 description = "Terminal-native data-recovery toolkit for photos and video, with live dashboards."
 readme = "README.md"
 license = { text = "MIT" }
