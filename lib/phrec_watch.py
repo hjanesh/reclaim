@@ -14,10 +14,10 @@ import theme as T
 
 CATS = [
     ("RAW",   T.GREEN,  {"cr2","cr3","nef","arw","raf","orf","rw2","dng","tif","tiff",
-                         "pef","srw","x3f","3fr","mef","iiq","mos","nrw","sr2","srf"}),
+                         "pef","srw","x3f","3fr","mef","iiq","mos","nrw","sr2","srf","gpr"}),
     ("JPEG",  T.BLUE,   {"jpg","jpeg","png","heic","heif","gif","bmp","webp"}),
     ("Video", T.PURPLE, {"mov","mp4","avi","mts","m2ts","mxf","3gp","mpg","mpeg",
-                         "mkv","wmv","m4v"}),
+                         "mkv","wmv","m4v","insv","braw","crm","ts","m2t"}),
     ("Audio", T.YELLOW, {"wav","mp3","aac","m4a","flac","ogg","wma"}),
 ]
 

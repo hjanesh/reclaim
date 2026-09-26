@@ -37,7 +37,6 @@ def main():
         pct = pos / limit * 100 if limit else 0
         comp = sum(1 for c in clips if c["state"] == "complete")
         trn = len(clips) - comp
-        now = time.time()
         rate = eta = None
         if len(hist) >= 2 and hist[-1][0] > hist[0][0]:
             r = (hist[-1][1] - hist[0][1]) / (hist[-1][0] - hist[0][0])

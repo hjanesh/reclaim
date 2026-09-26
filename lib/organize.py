@@ -11,11 +11,14 @@ Usage:  python3 organize.py <recovered_dir> <out_dir> [--apply]
 """
 import sys, os, csv, subprocess, shutil, datetime
 import theme as T
+import runlog
 
 RELABEL = {"sr2": "arw", "srf": "arw", "tif": "arw", "tiff": "arw"}
 MEDIA = {"arw", "sr2", "srf", "tif", "tiff", "cr2", "cr3", "nef", "raf", "orf",
-         "rw2", "dng", "jpg", "jpeg", "png", "heic", "heif",
-         "mov", "mp4", "avi", "mts", "m2ts", "m4v"}
+         "rw2", "dng", "gpr", "pef", "srw", "x3f", "3fr", "mef", "iiq", "nrw",
+         "jpg", "jpeg", "png", "heic", "heif", "webp", "gif", "bmp",
+         "mov", "mp4", "avi", "mts", "m2ts", "m4v", "mkv", "mpg", "mpeg",
+         "wmv", "3gp", "insv", "braw", "crm", "ts", "m2t"}
 
 
 def have(cmd): return shutil.which(cmd) is not None
@@ -43,8 +46,8 @@ def exif_dates(root):
                 if v and v[:4].isdigit():
                     dates[os.path.abspath(src)] = v[:10]
                     break
-    except Exception:
-        pass
+    except Exception as e:
+        runlog.warn("exiftool date read failed; falling back to file mtimes", e)
     return dates
 
 
@@ -73,6 +76,8 @@ def main():
     apply = "--apply" in sys.argv[3:]
     if not os.path.isdir(root):
         T.err(f"not a directory: {root}"); sys.exit(1)
+    if apply:
+        runlog.set_dir(out)   # only create the log (and out dir) on a real run
 
     T.banner("organize", ("APPLY (moving files)" if apply else "DRY-RUN (preview only)"))
     T.info("reading capture dates via exiftool …" if have("exiftool")
@@ -124,7 +129,7 @@ def main():
         try:
             shutil.move(src, dst); moved += 1
         except Exception as e:
-            T.err(f"failed {src}: {e}")
+            T.err(f"failed {src}: {e}"); runlog.error(f"move failed: {src}", e)
     T.ok(f"moved {moved} files into {out}")
 
 

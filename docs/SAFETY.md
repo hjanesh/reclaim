@@ -8,8 +8,11 @@ rules learned the practical way.
 1. **Never write to the source.** Every source is opened read-only in code
    (`open(path, 'rb')`, `ddrescue` only reads its input, `photorec` opens read-only). Reclaim
    never runs a repair/format/`fsck`/`chkdsk` on your media.
-2. **Output must differ from the source.** The tool refuses if you point output at the source
-   path. Recovered data always lands on a *different* drive.
+2. **Output must differ from the source.** One shared guard (`lib/safety.py`) refuses an output
+   that equals the source, sits inside it, or contains it. Imaging goes further: it refuses a
+   destination on the *same physical disk* as the source (you can't image a card onto itself) and
+   warns when the destination has less free space than the source. Recovered data always lands on a
+   *different* drive.
 3. **Image first, then work from the copy.** Imaging touches the failing media exactly once. All
    scanning/carving then reads the safe image, so repeated passes never stress the original.
 4. **Stop using the media the moment you notice loss.** Don't shoot more frames, don't "repair"
@@ -40,6 +43,16 @@ rules learned the practical way.
 
 ## Verifying a recovery
 
+- Run **Verify** (menu 7, or `reclaim verify <folder>`) to have the tool open every recovered file
+  and flag the broken ones, so you're not checking by hand.
+- Video recovery writes a `manifest.json` (states, sizes, SHA-256) in the output folder as a record
+  of what came out.
 - Open a few RAW files in your editor and check EXIF looks right.
 - Play the recovered videos end-to-end (not just the first second).
 - Keep the original image until you've confirmed the recovery - it's your safety net.
+
+## Best-effort steps leave a log
+
+Some steps (untrunc/ffmpeg repair, metadata reads) are best-effort and can fail on a given file
+without stopping the run. When that happens the reason is appended to `reclaim.log` in the output
+folder, so there's a record of what did and didn't work instead of a silent skip.

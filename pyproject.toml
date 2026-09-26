@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reclaim"
+version = "0.1.0"
+description = "Terminal-native data-recovery toolkit for photos and video, with live dashboards."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "Hemanth Janesh" }]
+dependencies = []   # runtime is pure stdlib; external tools installed via install.sh
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/hjanesh/reclaim"
+
+[project.scripts]
+reclaim = "reclaim:main"
+
+[tool.setuptools]
+py-modules = ["reclaim"]     # top-level entry module
+packages = ["reclaim_lib"]   # lib/ ships as an importable package
+
+[tool.setuptools.package-dir]
+reclaim_lib = "lib"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "lib"]   # import reclaim (root) + the flat lib modules (mirrors runtime)
+
+[tool.ruff]
+line-length = 120   # the dashboard rows are intentionally wide, ANSI-aligned
+target-version = "py39"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+# The codebase deliberately uses compact one-liners in its UI/CLI helpers:
+#   E401 combined imports (import sys, os, time)
+#   E701/E702 multiple statements on a line (T.err(...); T.pause(); return)
+# (one-line defs like `def fg(c): return ...` aren't flagged by ruff)
+ignore = ["E401", "E701", "E702"]

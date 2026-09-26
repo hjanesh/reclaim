@@ -9,6 +9,22 @@ python3 reclaim.py
 Every option opens read-only on the source and asks for an output location on a **different**
 drive. You can also run any module standalone (handy for scripting), shown under each section.
 
+### Non-interactive commands
+
+If you installed with `pipx install .`, the same steps are available as subcommands (great for
+scripts). Running `reclaim` with no arguments opens the menu.
+
+```bash
+reclaim detect card.img 60                 # scan the first 60 GB for clips
+reclaim recover card.img out/ --ref refs/  # carve + repair videos
+reclaim organize recovered/ organized/     # dry-run; add --apply to move
+reclaim rename recovered/ named/           # dry-run; add --apply to rename
+reclaim verify recovered/ --dedup          # check files open; add --apply to move duplicates
+reclaim disks                              # list attached drives
+```
+
+`image` and `photos` stay interactive (they need device selection, sudo, and the live dashboard).
+
 ### Choosing paths
 
 At any path prompt you can:
@@ -66,7 +82,8 @@ python3 lib/phrec_watch.py /path/to/output 50     # 50 = expected GB, for the ba
 ## 3) Detect videos  (scan_mp4)
 
 Scans an image for MP4/MOV clips and prints a table: each clip's offset, size, and state -
-**COMPLETE** (has `moov`+`mdat`, will play) vs **truncated/fragment** (needs repair).
+**COMPLETE** (has `moov`+`mdat`, will play) vs **truncated/fragment** (needs repair). It also
+picks up fragmented (`moof`) and segment-start (`styp`) clips from action cams like GoPro and DJI.
 
 ```bash
 python3 lib/scan_mp4.py card.img 60      # scan the first 60 GB
@@ -85,6 +102,9 @@ reuse them later without re-scanning (see [Running steps on different days](#run
   1. `untrunc <reference> <broken>` - needs a short reference clip shot on the **same camera in
      the same mode** (resolution/frame-rate/codec).
   2. `ffmpeg -c copy` remux as a fallback.
+
+A `manifest.json` is written in the output folder recording every clip: its state, size, the tool
+that recovered it, and a SHA-256 checksum. Keep it as a record of what came out of the run.
 
 ### Reference clips (for broken videos)
 
@@ -135,7 +155,24 @@ time**. Run this *or* Organize (5) - Organize sorts into date folders; Rename gi
 
 ---
 
-## 7) Show disks
+## 7) Verify recovered files  (verify)
+
+Confirms your recovered files actually open, and optionally removes duplicates. Videos are probed
+with `ffprobe`, photos with `exiftool`; anything that fails is listed as **broken** so you know
+what to re-recover. Read-only unless you pass `--apply`.
+
+```bash
+python3 lib/verify.py /recovered/dir                    # just report broken files
+python3 lib/verify.py /recovered/dir --dedup            # also find duplicate copies
+python3 lib/verify.py /recovered/dir --dedup --apply    # move duplicates into duplicates/
+```
+
+De-dupe groups files by content hash (photorec often carves the same file many times), keeps the
+first copy, and moves the rest into a `duplicates/` subfolder. Nothing is ever deleted.
+
+---
+
+## 8) Show disks
 
 Lists attached drives (internal vs external) so you can confirm identifiers before imaging.
 
