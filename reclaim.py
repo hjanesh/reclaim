@@ -16,14 +16,20 @@ or reformatted card/SSD:
 Design rule: sources are ALWAYS opened read-only; output must differ from the
 source. Prefer imaging first, then recover from the image.
 """
-import sys, os, subprocess, shutil
+import sys, os, argparse, subprocess, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = os.path.join(HERE, "lib")
-sys.path.insert(0, LIB)
+if os.path.isdir(LIB):
+    sys.path.insert(0, LIB)                    # source checkout: lib/ alongside
+else:                                          # installed: lib ships as reclaim_lib
+    import reclaim_lib
+    LIB = os.path.dirname(reclaim_lib.__file__)
+    sys.path.insert(0, LIB)
 
 import theme as T            # noqa: E402
 import platform_utils as P   # noqa: E402
+import safety as S           # noqa: E402
 
 OUTPUT_ROOT = os.path.join(HERE, "output")
 
@@ -54,8 +60,12 @@ def sudo_prefix(source):
     return ["sudo"] if str(source).startswith("/dev/") else []
 
 
-def diff_paths(a, b):
-    return os.path.abspath(a) != os.path.abspath(b)
+def refuse_unsafe(source, out):
+    """True (and prints why) if writing `out` would endanger `source`."""
+    ok, why = S.check_output(source, out)
+    if not ok:
+        T.err(why + "."); T.pause()
+    return not ok
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +98,18 @@ def do_image():
                      default=default_out("card.img"), pick_kind="save")
     if not img:
         return
-    if not diff_paths(source, img):
-        T.err("destination must differ from source."); T.pause(); return
+    if refuse_unsafe(source, img):
+        return
+    if P.same_device(source, img):
+        T.err("the destination is on the SAME physical disk as the source.")
+        T.info("write the image to a DIFFERENT drive - never image a disk onto itself.")
+        T.pause(); return
+    src_size = next((d["size"] for d in disks if d["node"] == source), 0)
+    free = P.free_space(os.path.dirname(img) or ".")
+    if src_size and free is not None and free < src_size:
+        T.warn(f"destination has {T.human_t(free)} free but the source is ~{T.human_t(src_size)}.")
+        if not T.confirm("continue anyway?", default=False):
+            return
     mapf = img[:-4] + ".map" if img.endswith(".img") else img + ".map"
     raw = P.raw_node(source)
     os.makedirs(os.path.dirname(img) or ".", exist_ok=True)
@@ -135,8 +155,12 @@ def do_photorec():
                      default=default_out("photos"))
     if not out:
         return
-    if not diff_paths(source, out):
-        T.err("output must differ from source."); T.pause(); return
+    if refuse_unsafe(source, out):
+        return
+    if S.is_device(source) and P.same_device(source, out):
+        T.err("the output is on the SAME physical disk you're recovering from.")
+        T.info("carve to a DIFFERENT drive so recovery can't overwrite survivors.")
+        T.pause(); return
     os.makedirs(out, exist_ok=True)
     exp = T.ask("approx expected data size in GB (for the progress bar)", default="50")
 
@@ -191,8 +215,8 @@ def do_recover_video():
                      default=default_out("videos"))
     if not out:
         return
-    if not diff_paths(img, out):
-        T.err("output must differ from the image."); T.pause(); return
+    if refuse_unsafe(img, out):
+        return
     ref = ""
     if T.confirm("do you have reference clip(s) to repair broken videos?", default=False):
         T.info("give a single .mp4/.mov file, OR a FOLDER containing several references")
@@ -212,8 +236,8 @@ def do_organize():
                      default=default_out("organized"))
     if not out:
         return
-    if not diff_paths(root, out):
-        T.err("output must differ from the source folder."); T.pause(); return
+    if refuse_unsafe(root, out):
+        return
     run_py("organize.py", root, out)     # dry-run first
     if T.confirm("apply these moves now?", default=False):
         run_py("organize.py", root, out, "--apply")
@@ -232,19 +256,35 @@ def do_rename():
                      default=default_out("renamed"))
     if not out:
         return
-    if not diff_paths(root, out):
-        T.err("output must differ from the source folder."); T.pause(); return
+    if refuse_unsafe(root, out):
+        return
     run_py("rename.py", root, out)     # dry-run first
     if T.confirm("apply these renames now?", default=False):
         run_py("rename.py", root, out, "--apply")
     T.pause()
 
 
-def do_disks():
+def do_verify():
+    T.clear(); T.banner("Verify recovered files",
+                        "check media is readable (ffprobe/exiftool) + optional de-dupe")
+    root = T.ask_path("folder of recovered files", want="dir")
+    if not root:
+        return
+    run_py("verify.py", root)
+    if T.confirm("also scan for duplicate files (by content hash)?", default=False):
+        run_py("verify.py", root, "--dedup")
+        if T.confirm("move the redundant copies into a duplicates/ subfolder?", default=False):
+            run_py("verify.py", root, "--dedup", "--apply")
+    T.pause()
+
+
+def do_disks(pause=True):
     T.clear(); T.banner("Disks", P.os_name())
     disks = P.list_disks()
     if not disks:
-        T.warn("could not list disks on this platform."); T.pause(); return
+        T.warn("could not list disks on this platform.")
+        if pause: T.pause()
+        return
     W = min(T.term()[0] - 2, 78)
     print(T.panel_row(f"  {'NODE':<16}{'SIZE':>10}  {'TYPE':<9} MOUNT / MODEL", W))
     print(T.panel_sep(W))
@@ -255,7 +295,7 @@ def do_disks():
         print(T.panel_row(f"  {d['node']:<16}{T.human_t(d['size']):>10}  "
                           f"{T.fg(col)}{tag:<9}{T.RESET} {info}", W))
     print(T.panel_bot(W))
-    T.pause()
+    if pause: T.pause()
 
 
 MENU = [
@@ -265,17 +305,19 @@ MENU = [
     ("4", "Recover videos", "carve complete clips + repair broken ones"),
     ("5", "Organize photos", "relabel Sony RAW + sort by capture date"),
     ("6", "Rename to original names", "restore filenames from embedded metadata"),
-    ("7", "Show disks", "list attached drives"),
+    ("7", "Verify recovered files", "check media is readable + de-dupe"),
+    ("8", "Show disks", "list attached drives"),
     ("q", "Quit", ""),
 ]
 
 ACTIONS = {
     "1": do_image, "2": do_photorec, "3": do_scan_video,
-    "4": do_recover_video, "5": do_organize, "6": do_rename, "7": do_disks,
+    "4": do_recover_video, "5": do_organize, "6": do_rename,
+    "7": do_verify, "8": do_disks,
 }
 
 
-def main():
+def menu_loop():
     while True:
         key = T.menu("RECLAIM · data recovery toolkit",
                      MENU, subtitle=f"{P.os_name()} · sources are read-only")
@@ -285,6 +327,71 @@ def main():
             ACTIONS[key]()
         except KeyboardInterrupt:
             print(); T.warn("cancelled - back to menu.")
+
+
+def build_parser():
+    """Non-interactive CLI mirroring the menu. No subcommand => interactive menu.
+
+    The file-based steps (detect/recover/organize/rename/verify/disks) run fully
+    headless, which also makes them scriptable and end-to-end testable. `image`
+    and `photos` stay interactive (they need device selection, sudo, and a live
+    dashboard), so they just enter their menu handlers.
+    """
+    p = argparse.ArgumentParser(
+        prog="reclaim", description="terminal-native data-recovery toolkit")
+    sub = p.add_subparsers(dest="cmd")
+
+    sub.add_parser("menu", help="interactive menu (default)")
+    sub.add_parser("image", help="image a disk/card with ddrescue (interactive)")
+    sub.add_parser("photos", help="recover files with photorec (interactive)")
+    sub.add_parser("disks", help="list attached drives")
+
+    sp = sub.add_parser("detect", help="find MP4/MOV clips in an image")
+    sp.add_argument("image"); sp.add_argument("gb", nargs="?", default="60")
+
+    sp = sub.add_parser("recover", help="carve + repair videos from an image")
+    sp.add_argument("image"); sp.add_argument("out")
+    sp.add_argument("--ref", default="", help="reference clip file or folder")
+    sp.add_argument("--gb", default="60", help="GB from start to scan")
+
+    for name, help_ in (("organize", "relabel Sony RAW + date-sort a folder"),
+                        ("rename", "restore original filenames from metadata")):
+        sp = sub.add_parser(name, help=help_)
+        sp.add_argument("src"); sp.add_argument("out")
+        sp.add_argument("--apply", action="store_true", help="perform moves (default: dry-run)")
+
+    sp = sub.add_parser("verify", help="check recovered media is readable + de-dupe")
+    sp.add_argument("folder")
+    sp.add_argument("--dedup", action="store_true", help="group duplicates by content hash")
+    sp.add_argument("--apply", action="store_true", help="move duplicates aside")
+    return p
+
+
+def cli(args):
+    """Dispatch a parsed non-interactive subcommand."""
+    if args.cmd == "detect":
+        run_py("scan_mp4.py", args.image, args.gb)
+    elif args.cmd == "recover":
+        run_py("video_recover.py", args.image, args.out, args.ref, args.gb)
+    elif args.cmd in ("organize", "rename"):
+        run_py(f"{args.cmd}.py", args.src, args.out, *(["--apply"] if args.apply else []))
+    elif args.cmd == "verify":
+        extra = (["--dedup"] if args.dedup else []) + (["--apply"] if args.apply else [])
+        run_py("verify.py", args.folder, *extra)
+    elif args.cmd == "disks":
+        do_disks(pause=False)
+    elif args.cmd == "image":
+        do_image()
+    elif args.cmd == "photos":
+        do_photorec()
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    if not args.cmd or args.cmd == "menu":
+        menu_loop()
+    else:
+        cli(args)
 
 
 if __name__ == "__main__":

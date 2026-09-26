@@ -13,9 +13,12 @@ Reads the image READ-ONLY; writes only into the output directory.
 
 Usage:  python3 video_recover.py <image> <out_dir> [reference_file_or_dir] [scan_GB]
 """
-import sys, os, time, shutil, subprocess, glob
+import sys, os, shutil, subprocess, glob
 import theme as T
 import mp4
+import safety
+import runlog
+import manifest
 
 REF_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mts", ".m2ts"}
 
@@ -56,7 +59,9 @@ def repair(raw_path, references, out_mp4):
             try:
                 subprocess.run(["untrunc", ref, raw_path],
                                capture_output=True, text=True, timeout=1800)
-            except Exception:
+            except Exception as e:
+                runlog.warn(f"untrunc failed on {os.path.basename(raw_path)} "
+                            f"with ref {os.path.basename(ref)}", e)
                 continue
             for c in sorted(glob.glob(raw_path + "*fixed*.mp4")):
                 if os.path.getsize(c) > 0:
@@ -72,8 +77,8 @@ def repair(raw_path, references, out_mp4):
                 return "ffmpeg"
             if os.path.exists(out_mp4):
                 os.remove(out_mp4)
-        except Exception:
-            pass
+        except Exception as e:
+            runlog.warn(f"ffmpeg remux failed on {os.path.basename(raw_path)}", e)
     return None
 
 
@@ -112,14 +117,16 @@ def main():
 
     if not os.path.isfile(image):
         T.err(f"image not found: {image}"); sys.exit(1)
-    if os.path.abspath(image).startswith(out_dir.rstrip("/") + "/"):
-        T.err("output dir must not contain the source image"); sys.exit(1)
+    ok, why = safety.check_output(image, out_dir)
+    if not ok:
+        T.err(why + "."); sys.exit(1)
 
     references = collect_refs(ref_arg)
     good_dir = os.path.join(out_dir, "videos")
     raw_dir = os.path.join(out_dir, "videos_broken")
     os.makedirs(good_dir, exist_ok=True)
     os.makedirs(raw_dir, exist_ok=True)
+    runlog.set_dir(out_dir)
     img_size = os.path.getsize(image)
     limit = min(scan_gb * 1024**3, img_size)
 
@@ -155,7 +162,36 @@ def main():
                 else:
                     results.append((n, c, "raw-only", "needs matching reference"))
             _render(live, clips, results, references)
+    _write_manifest(out_dir, image, good_dir, raw_dir, results)
     _summary(results, good_dir, raw_dir)
+
+
+def _clip_path(good_dir, raw_dir, n, result):
+    base = f"clip_{n:03d}"
+    if result == "carved":
+        return os.path.join(good_dir, base + ".mp4")
+    if result == "repaired":
+        return os.path.join(good_dir, base + "_recovered.mp4")
+    return os.path.join(raw_dir, base + ".raw")
+
+
+def _write_manifest(out_dir, image, good_dir, raw_dir, results):
+    """Record what came out of the run (states, sizes, sha256) for later audit."""
+    entries = []
+    for n, c, result, outcome in results:
+        path = _clip_path(good_dir, raw_dir, n, result)
+        entries.append({
+            "n": n,
+            "file": os.path.relpath(path, out_dir),
+            "detected_state": c["state"],
+            "result": result,
+            "outcome": outcome,
+            "size": c["size"],
+            "sha256": manifest.sha256(path) if os.path.exists(path) else None,
+        })
+    playable = sum(1 for e in entries if e["result"] in ("carved", "repaired"))
+    manifest.write(out_dir, "recover-videos", image, entries,
+                   extra={"playable": playable, "raw_only": len(entries) - playable})
 
 
 def _render(live, clips, results, references):

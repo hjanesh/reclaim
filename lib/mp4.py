@@ -10,21 +10,26 @@ complete (has moov + mdat) or truncated/fragmented.
 import os
 import json
 
-# recognised top-level atom types
-TOP = {b"ftyp", b"moov", b"mdat", b"free", b"skip", b"wide", b"uuid",
-       b"meta", b"pnot", b"udta", b"mfra"}
+# recognised top-level atom types (incl. fragmented-MP4 boxes so the walker
+# measures the full extent of GoPro/DJI/action-cam clips instead of stopping
+# at the first moof)
+TOP = {b"ftyp", b"styp", b"moov", b"mdat", b"free", b"skip", b"wide", b"uuid",
+       b"meta", b"pnot", b"udta", b"mfra", b"moof", b"sidx", b"ssix", b"emsg"}
+
+# a clip can begin with a file-type box (ftyp) or a segment-type box (styp)
+START_BRANDS = (b"ftyp", b"styp")
 
 MIN_CLIP = 512 * 1024          # ignore sub-512KB false hits
 
 
 def walk(f, start, img_size):
     """
-    Walk the atom chain from an ftyp start.
-    Returns dict: {off, size, moov, mdat, brand, state}.
-    state ∈ {'complete','trunc','fragment'}.
+    Walk the atom chain from an ftyp/styp start.
+    Returns dict: {off, size, moov, mdat, moof, brand, state}.
+    state is one of 'complete', 'trunc', 'fragment'.
     """
     off = start
-    moov = mdat = False
+    moov = mdat = moof = False
     brand = "?"
     first = True
     while off < img_size:
@@ -42,27 +47,33 @@ def walk(f, start, img_size):
             size = img_size - off
         if size < 8 or off + size > img_size + 8:
             break
-        if first and typ == b"ftyp":
+        if first and typ in START_BRANDS:
             brand = hdr[8:12].decode("latin1", "replace").strip()
         if typ == b"moov":
             moov = True
         if typ == b"mdat":
             mdat = True
+        if typ == b"moof":
+            moof = True
         off += size
         first = False
     size = off - start
+    # complete = has movie header + media data (fragmented clips with an init
+    # moov count as complete; their moof/mdat extent is now measured too).
     if moov and mdat:
         state = "complete"
     elif mdat:
-        state = "trunc"
+        state = "trunc"                 # media data but no moov (moov may be lost)
     else:
-        state = "fragment"
+        state = "fragment"              # e.g. moof-only segment, needs init
     return {"off": start, "size": size, "moov": moov, "mdat": mdat,
-            "brand": brand, "state": state}
+            "moof": moof, "brand": brand, "state": state}
 
 
 def is_ftyp_candidate(data, j):
-    """Validate an 'ftyp' hit at index j in `data` (needs the 4 size bytes before)."""
+    """Validate an 'ftyp'/'styp' hit at index j in `data` (needs the 4 size
+    bytes before it). Both boxes share the same shape: a small box whose
+    payload starts with a printable major brand."""
     if j < 4:
         return False
     boxsize = int.from_bytes(data[j - 4:j], "big")
@@ -71,6 +82,20 @@ def is_ftyp_candidate(data, j):
     if j + 8 > len(data):
         return False
     return all(32 <= b < 127 for b in data[j + 4:j + 8])   # printable major brand
+
+
+def _next_start(data, i):
+    """Index of the next ftyp/styp candidate marker at/after i, or -1."""
+    best = -1
+    for marker in START_BRANDS:
+        j = data.find(marker, i)
+        while j != -1:
+            if is_ftyp_candidate(data, j):
+                if best == -1 or j < best:
+                    best = j
+                break
+            j = data.find(marker, j + 4)
+    return best
 
 
 def scan(image, limit=None, chunk=16 * 1024 * 1024, progress=None):
@@ -96,15 +121,14 @@ def scan(image, limit=None, chunk=16 * 1024 * 1024, progress=None):
             base = read_pos - len(carry)
             i = 0
             while True:
-                j = data.find(b"ftyp", i)
+                j = _next_start(data, i)
                 if j < 0:
                     break
-                if is_ftyp_candidate(data, j):
-                    off = base + (j - 4)
-                    clip = walk(f, off, img_size)
-                    if clip["size"] >= MIN_CLIP:
-                        count += 1
-                        yield clip
+                off = base + (j - 4)
+                clip = walk(f, off, img_size)
+                if clip["size"] >= MIN_CLIP:
+                    count += 1
+                    yield clip
                 i = j + 4
             carry = data[-8:]
             read_pos += len(buf)

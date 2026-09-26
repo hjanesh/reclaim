@@ -15,11 +15,14 @@ Usage:  python3 rename.py <recovered_dir> <out_dir> [--apply]
 """
 import sys, os, csv, subprocess, shutil
 import theme as T
+import runlog
 
 RELABEL = {"sr2": "arw", "srf": "arw", "tif": "arw", "tiff": "arw"}
 MEDIA = {"arw", "sr2", "srf", "tif", "tiff", "cr2", "cr3", "nef", "raf", "orf",
-         "rw2", "dng", "jpg", "jpeg", "png", "heic", "heif",
-         "mov", "mp4", "avi", "mts", "m2ts", "m4v"}
+         "rw2", "dng", "gpr", "pef", "srw", "x3f", "3fr", "mef", "iiq", "nrw",
+         "jpg", "jpeg", "png", "heic", "heif", "webp", "gif", "bmp",
+         "mov", "mp4", "avi", "mts", "m2ts", "m4v", "mkv", "mpg", "mpeg",
+         "wmv", "3gp", "insv", "braw", "crm", "ts", "m2t"}
 # metadata tags that (for some cameras) hold the original on-card filename
 NAME_TAGS = ["OriginalFileName", "PreservedFileName", "OriginalRawFileName",
              "RawFileName", "DocumentName"]
@@ -35,7 +38,8 @@ def gather(root):
     try:
         r = subprocess.run(["exiftool", "-r", "-csv", "-d", "%Y%m%d_%H%M%S"] + cols + [root],
                            capture_output=True, text=True, timeout=3600)
-    except Exception:
+    except Exception as e:
+        runlog.warn("exiftool metadata read failed", e)
         return {}
     if not r.stdout:
         return {}
@@ -93,6 +97,8 @@ def main():
         T.err(f"not a directory: {root}"); sys.exit(1)
     if not have("exiftool"):
         T.err("exiftool is required - run ./install.sh"); sys.exit(1)
+    if apply:
+        runlog.set_dir(out)   # only create the log (and out dir) on a real run
 
     T.banner("rename", ("APPLY (moving files)" if apply else "DRY-RUN (preview only)"))
     T.info("reading metadata via exiftool …")
@@ -144,7 +150,7 @@ def main():
         try:
             shutil.move(src, dst); moved += 1
         except Exception as e:
-            T.err(f"failed {src}: {e}")
+            T.err(f"failed {src}: {e}"); runlog.error(f"rename failed: {src}", e)
     T.ok(f"renamed {moved} files -> {out}")
 
 
